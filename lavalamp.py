@@ -103,6 +103,14 @@ class LavaLamp:
             brightness_values.append(self.light_names[l].brightness)
         self.set_brightness(min(brightness_values))
 
+    # reset transitiontime, hue, brightness and saturation of every light except for the alexa light
+    def restore_original_state(self):
+        for index, light in enumerate(self.used_lights_without_alexa_light):
+            self.light_names[light].transitiontime = 4
+            self.light_names[light].hue = self.initial_hues[index]
+            self.light_names[light].saturation = self.initial_saturation[index]
+            self.light_names[light].brightness = self.initial_brightness[index]
+
     # script loop - menu 1
     def loop_random(self):
         if raw_input('Start Color Loop now? (y/n) > ') in ['y', 'Y']:
@@ -124,12 +132,9 @@ class LavaLamp:
                 else:
                     if self.was_On:
                         self.was_On = False
-                        for index, light in enumerate(self.used_lights_without_alexa_light):
-                            self.light_names[light].transitiontime = 4
-                            self.light_names[light].hue = self.initial_hues[index]
-                            self.light_names[light].saturation = self.initial_saturation[index]
-                            self.light_names[light].brightness = self.initial_brightness[index]
-
+                        t = Timer(self.transition_time, self.restore_original_state)
+                        t.start()
+                        t.join()
                         print "[STATUS]{} Stopped color loop! Waiting for all lights to be turned on again ..." \
                             .format(self.get_time_string())
                     else:
