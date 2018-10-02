@@ -10,7 +10,7 @@ class LavaLamp:
     switch_colors = False
     was_On = False
 
-    def __init__(self, lights, dev_output):
+    def __init__(self, lights, alexa_light, transition_time, dev_output):
         if isinstance(dev_output, bool):
             self.dev_output = dev_output
         else:
@@ -21,12 +21,22 @@ class LavaLamp:
 
         self.light_names = self.b.get_light_objects('name')
         self.used_lights = lights
-        self.transition_time = 8
+        self.alexa_light = alexa_light
+        self.transition_time = transition_time
         self.last_hues = []
+        self.initial_hues = []
+        self.initial_saturation = []
+        self.initial_brightness = []
+        self.used_lights_without_alexa_light = []
 
         print '[STATUS]{} Used lights for LavaLamp:\n'.format(self.get_time_string())
         for light in self.used_lights:
             self.last_hues.append(self.light_names[light].hue)
+            if not light == self.alexa_light:
+                self.initial_hues.append(self.light_names[light].hue)
+                self.initial_saturation.append(self.light_names[light].saturation)
+                self.initial_brightness.append(self.light_names[light].brightness)
+                self.used_lights_without_alexa_light.append(light)
             print light
 
     # generate time string for status messages
@@ -96,16 +106,15 @@ class LavaLamp:
     # script loop - menu 1
     def loop_random(self):
         if raw_input('Start Color Loop now? (y/n) > ') in ['y', 'Y']:
-            self.match_brightness()
-            if not self.is_On():
-                self.turn_On()
-            self.set_saturation(254)
-            self.new_random_colors()
-
             while True:
                 if self.is_On():
                     if not self.was_On:
                         print '[STATUS]{} Starting color loop ...'.format(self.get_time_string())
+                        for index, light in enumerate(self.used_lights_without_alexa_light):
+                            self.initial_hues[index] = self.light_names[light].hue
+                            self.initial_saturation[index] = self.light_names[light].saturation
+                            self.initial_brightness[index] = self.light_names[light].brightness
+                        self.set_saturation(254)
                         self.match_brightness()
                     self.was_On = True
 
@@ -114,10 +123,17 @@ class LavaLamp:
                     t.join()
                 else:
                     if self.was_On:
-                        print "[STATUS]{} Stopped color loop! Waiting for all lights to be turned on again ..."\
-                            .format(self.get_time_string())
                         self.was_On = False
-                    time.sleep(1)
+                        for index, light in enumerate(self.used_lights_without_alexa_light):
+                            self.light_names[light].transitiontime = 4
+                            self.light_names[light].hue = self.initial_hues[index]
+                            self.light_names[light].saturation = self.initial_saturation[index]
+                            self.light_names[light].brightness = self.initial_brightness[index]
+
+                        print "[STATUS]{} Stopped color loop! Waiting for all lights to be turned on again ..." \
+                            .format(self.get_time_string())
+                    else:
+                        time.sleep(1)
 
     def loop_same_colors(self):
         print "You've successfully entered loop_same_colors"
@@ -141,7 +157,7 @@ class LavaLamp:
                 print '[ERROR]{} Your choice is not a part of the menu!'.format(self.get_time_string())
 
 
-lava = LavaLamp(['Oben', 'Unten'], True)
+lava = LavaLamp(['Oben', 'Unten'], 'Oben', 8, True)
 lava.menu()
 
 
